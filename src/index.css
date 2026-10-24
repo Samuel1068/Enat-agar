@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #0D9488;
+    --color-primary-light: #CCFBF1;
+    --color-danger: #E11D48;
+    --color-warning: #F59E0B;
+    --color-app-bg: #F8FAFC;
+    --color-card: #FFFFFF;
+    --color-text-dark: #1E293B;
+    --color-text-muted: #64748B;
+    --color-border: #E2E8F0;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, "Inter", ui-sans-serif, system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Custom color utilities */
+  .bg-app-bg { background-color: var(--color-app-bg); }
+  .bg-primary { background-color: var(--color-primary); }
+  .bg-primary-light { background-color: var(--color-primary-light); }
+  .bg-danger { background-color: var(--color-danger); }
+  .bg-warning { background-color: var(--color-warning); }
+  .bg-card { background-color: var(--color-card); }
+  .text-primary { color: var(--color-primary); }
+  .text-danger { color: var(--color-danger); }
+  .text-warning { color: var(--color-warning); }
+  .text-text-dark { color: var(--color-text-dark); }
+  .text-text-muted { color: var(--color-text-muted); }
+  .border-border { border-color: var(--color-border); }
+  .border-primary { border-color: var(--color-primary); }
+  .ring-primary { --tw-ring-color: var(--color-primary); }
+  .hover\:bg-primary:hover { background-color: var(--color-primary); }
+  .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary); }
+}
