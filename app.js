@@ -20,6 +20,9 @@ var pool = new Pool({
   idleTimeoutMillis: 3e4,
   connectionTimeoutMillis: 3e3
 });
+pool.on("error", (err) => {
+  console.warn("\u26A0\uFE0F [Postgres Pool Background Warning]:", err.message);
+});
 var isConnectedToPostgres = false;
 var memoryStore = {
   users: [],
@@ -1235,6 +1238,12 @@ var admin_default = router4;
 
 // server/index.ts
 dotenv2.config();
+process.on("uncaughtException", (err) => {
+  console.error("\u26A0\uFE0F [Process Uncaught Exception]:", err.message);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("\u26A0\uFE0F [Process Unhandled Rejection]:", reason);
+});
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var app = express();
@@ -1263,6 +1272,15 @@ var candidateDistDirs = [
   path.resolve(__dirname, "../dist"),
   path.resolve(process.cwd(), "../dist")
 ];
+app.get("/favicon.ico", (req, res) => {
+  for (const base of candidateDistDirs) {
+    const iconPath = path.join(base, "icon.svg");
+    if (fs.existsSync(iconPath)) {
+      return res.sendFile(iconPath);
+    }
+  }
+  res.status(204).end();
+});
 candidateDistDirs.forEach((dir) => {
   if (fs.existsSync(dir)) {
     app.use(express.static(dir));
@@ -1335,14 +1353,18 @@ app.get("*", (req, res, next) => {
     </div>
   `);
 });
-async function startServer() {
-  await initDatabase();
-  app.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(`\u{1F338} Enat Agar Fullstack Backend running on port ${PORT}`);
-    console.log(`\u{1F517} API Base: http://localhost:${PORT}/api`);
+var server = app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(`\u{1F338} Enat Agar Fullstack Backend running on port ${PORT}`);
+  console.log(`\u{1F517} API Base: http://localhost:${PORT}/api`);
+  console.log(`=======================================================`);
+  initDatabase().then(() => {
     console.log(`\u{1F5C4}\uFE0F PostgreSQL Status: ${isConnectedToPostgres ? "CONNECTED \u2705" : "WAITING / MEMORY-SYNC ACTIVE \u26A1"}`);
-    console.log(`=======================================================`);
+  }).catch((err) => {
+    console.warn("Database initialization warning:", err.message);
   });
-}
-startServer();
+});
+var index_default = app;
+export {
+  index_default as default
+};

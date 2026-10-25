@@ -18,6 +18,11 @@ export const pool = new Pool({
   connectionTimeoutMillis: 3000,
 });
 
+// Prevent unhandled background pool errors from crashing the Node.js server
+pool.on('error', (err) => {
+  console.warn('⚠️ [Postgres Pool Background Warning]:', err.message);
+});
+
 export let isConnectedToPostgres = false;
 
 // In-Memory store fallback that mirrors PostgreSQL data structure

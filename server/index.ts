@@ -12,6 +12,14 @@ import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
+// Global crash protection for cPanel/Passenger
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ [Process Uncaught Exception]:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ [Process Unhandled Rejection]:', reason);
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -50,6 +58,17 @@ const candidateDistDirs = [
   path.resolve(__dirname, '../dist'),
   path.resolve(process.cwd(), '../dist')
 ];
+
+// Favicon handler
+app.get('/favicon.ico', (req, res) => {
+  for (const base of candidateDistDirs) {
+    const iconPath = path.join(base, 'icon.svg');
+    if (fs.existsSync(iconPath)) {
+      return res.sendFile(iconPath);
+    }
+  }
+  res.status(204).end();
+});
 
 // 1. Mount standard Express static directories
 candidateDistDirs.forEach(dir => {
@@ -144,17 +163,19 @@ app.get('*', (req, res, next) => {
   `);
 });
 
-// Boot server
-async function startServer() {
-  await initDatabase();
-
-  app.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(`🌸 Enat Agar Fullstack Backend running on port ${PORT}`);
-    console.log(`🔗 API Base: http://localhost:${PORT}/api`);
+// Boot server immediately for Passenger, then initialize database in background
+const server = app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(`🌸 Enat Agar Fullstack Backend running on port ${PORT}`);
+  console.log(`🔗 API Base: http://localhost:${PORT}/api`);
+  console.log(`=======================================================`);
+  
+  // Non-blocking database init so Passenger never times out with 503
+  initDatabase().then(() => {
     console.log(`🗄️ PostgreSQL Status: ${isConnectedToPostgres ? 'CONNECTED ✅' : 'WAITING / MEMORY-SYNC ACTIVE ⚡'}`);
-    console.log(`=======================================================`);
+  }).catch((err) => {
+    console.warn('Database initialization warning:', err.message);
   });
-}
+});
 
-startServer();
+export default app;
