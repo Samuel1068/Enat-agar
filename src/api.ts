@@ -1,6 +1,13 @@
 import { User, PatientData, AppointmentRecord, ReminderRecord, ClinicianPatientSummary, AdminStats } from './types';
 
-const API_BASE = '/api';
+function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    // If running in a subdirectory on cPanel, e.g. /Enat-agar1/
+    const pathname = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/$/, '');
+    return pathname ? `${pathname}/api` : '/api';
+  }
+  return '/api';
+}
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('enatagar_token');
@@ -25,7 +32,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     (headers as any)['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const apiBase = getApiBase();
+  const response = await fetch(`${apiBase}${endpoint}`, {
     ...options,
     headers
   });

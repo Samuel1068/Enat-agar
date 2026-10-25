@@ -34,6 +34,17 @@ app.use(cors({
 
 app.use(express.json());
 
+// Strip any application subpath prefix (e.g. /Enat-agar1/api/... -> /api/...)
+app.use((req, res, next) => {
+  const apiIndex = req.url.indexOf('/api/');
+  if (apiIndex > 0) {
+    req.url = req.url.substring(apiIndex);
+  } else if (req.url.endsWith('/api')) {
+    req.url = '/api';
+  }
+  next();
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);

@@ -1253,6 +1253,15 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use((req, res, next) => {
+  const apiIndex = req.url.indexOf("/api/");
+  if (apiIndex > 0) {
+    req.url = req.url.substring(apiIndex);
+  } else if (req.url.endsWith("/api")) {
+    req.url = "/api";
+  }
+  next();
+});
 app.use("/api/auth", auth_default);
 app.use("/api/patients", patients_default);
 app.use("/api/clinician", clinicians_default);
