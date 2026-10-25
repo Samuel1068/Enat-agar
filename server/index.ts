@@ -45,16 +45,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes (mount standard and wildcard so any subfolder /Enat1/api works)
-app.use('/api/auth', authRoutes);
-app.use('*/api/auth', authRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('*/api/patients', patientRoutes);
-app.use('/api/clinician', clinicianRoutes);
-app.use('*/api/clinician', clinicianRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('*/api/admin', adminRoutes);
-
 // Health check endpoint
 const handleHealth = (req: express.Request, res: express.Response) => {
   res.json({
@@ -64,7 +54,21 @@ const handleHealth = (req: express.Request, res: express.Response) => {
     timestamp: new Date().toISOString()
   });
 };
-app.get('/api/health', handleHealth);
+
+// API Routes: mount on root, subfolder prefixes (/Enat1), and wildcards
+const subpaths = ['', '/Enat1', '/enat1', '/Enat', '/enat', '/Enat-agar1'];
+subpaths.forEach(sub => {
+  app.use(`${sub}/api/auth`, authRoutes);
+  app.use(`${sub}/api/patients`, patientRoutes);
+  app.use(`${sub}/api/clinician`, clinicianRoutes);
+  app.use(`${sub}/api/admin`, adminRoutes);
+  app.get(`${sub}/api/health`, handleHealth);
+});
+
+app.use('*/api/auth', authRoutes);
+app.use('*/api/patients', patientRoutes);
+app.use('*/api/clinician', clinicianRoutes);
+app.use('*/api/admin', adminRoutes);
 app.get('*/api/health', handleHealth);
 
 // Candidate dist directories to search

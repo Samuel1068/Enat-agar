@@ -1262,14 +1262,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use("/api/auth", auth_default);
-app.use("*/api/auth", auth_default);
-app.use("/api/patients", patients_default);
-app.use("*/api/patients", patients_default);
-app.use("/api/clinician", clinicians_default);
-app.use("*/api/clinician", clinicians_default);
-app.use("/api/admin", admin_default);
-app.use("*/api/admin", admin_default);
 var handleHealth = (req, res) => {
   res.json({
     status: "ok",
@@ -1278,7 +1270,18 @@ var handleHealth = (req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 };
-app.get("/api/health", handleHealth);
+var subpaths = ["", "/Enat1", "/enat1", "/Enat", "/enat", "/Enat-agar1"];
+subpaths.forEach((sub) => {
+  app.use(`${sub}/api/auth`, auth_default);
+  app.use(`${sub}/api/patients`, patients_default);
+  app.use(`${sub}/api/clinician`, clinicians_default);
+  app.use(`${sub}/api/admin`, admin_default);
+  app.get(`${sub}/api/health`, handleHealth);
+});
+app.use("*/api/auth", auth_default);
+app.use("*/api/patients", patients_default);
+app.use("*/api/clinician", clinicians_default);
+app.use("*/api/admin", admin_default);
 app.get("*/api/health", handleHealth);
 var candidateDistDirs = [
   path.resolve(process.cwd(), "dist"),
