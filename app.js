@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv2 from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 // server/db.ts
@@ -1255,7 +1256,7 @@ app.get("/api/health", (req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 });
-var distPath = path.resolve(__dirname, "../dist");
+var distPath = fs.existsSync(path.resolve(__dirname, "./dist")) ? path.resolve(__dirname, "./dist") : path.resolve(__dirname, "../dist");
 app.use(express.static(distPath));
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) {

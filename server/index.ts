@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initDatabase, isConnectedToPostgres } from './db.js';
 import authRoutes from './routes/auth.js';
@@ -42,7 +43,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve frontend in production if built
-const distPath = path.resolve(__dirname, '../dist');
+const distPath = fs.existsSync(path.resolve(__dirname, './dist'))
+  ? path.resolve(__dirname, './dist')
+  : path.resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 
 // In development or fallback, handle non-api routes
