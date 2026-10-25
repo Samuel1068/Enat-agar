@@ -1263,18 +1263,29 @@ var candidateDistDirs = [
   path.resolve(__dirname, "../dist"),
   path.resolve(process.cwd(), "../dist")
 ];
-function getDistDir() {
-  for (const dir of candidateDistDirs) {
-    if (fs.existsSync(path.join(dir, "index.html"))) {
-      return dir;
+candidateDistDirs.forEach((dir) => {
+  if (fs.existsSync(dir)) {
+    app.use(express.static(dir));
+    const assetsDir = path.join(dir, "assets");
+    if (fs.existsSync(assetsDir)) {
+      app.use("/assets", express.static(assetsDir));
     }
   }
-  return null;
-}
+});
 app.use((req, res, next) => {
-  const distDir = getDistDir();
-  if (distDir) {
-    return express.static(distDir)(req, res, next);
+  if (req.path.startsWith("/api")) {
+    return next();
+  }
+  for (const base of candidateDistDirs) {
+    if (!fs.existsSync(base)) continue;
+    const directPath = path.join(base, req.path);
+    if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
+      return res.sendFile(directPath);
+    }
+    const inAssetsPath = path.join(base, "assets", req.path);
+    if (fs.existsSync(inAssetsPath) && fs.statSync(inAssetsPath).isFile()) {
+      return res.sendFile(inAssetsPath);
+    }
   }
   next();
 });
@@ -1282,12 +1293,11 @@ app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) {
     return next();
   }
-  if (req.path.startsWith("/assets") || req.path.includes(".") && !req.path.endsWith(".html")) {
-    return res.status(404).send("Asset not found: " + req.path);
-  }
-  const distDir = getDistDir();
-  if (distDir) {
-    return res.sendFile(path.join(distDir, "index.html"));
+  for (const base of candidateDistDirs) {
+    const htmlFile = path.join(base, "index.html");
+    if (fs.existsSync(htmlFile)) {
+      return res.sendFile(htmlFile);
+    }
   }
   res.status(200).send(`
     <div style="font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto;">

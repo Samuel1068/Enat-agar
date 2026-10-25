@@ -51,38 +51,53 @@ const candidateDistDirs = [
   path.resolve(process.cwd(), '../dist')
 ];
 
-function getDistDir(): string | null {
-  for (const dir of candidateDistDirs) {
-    if (fs.existsSync(path.join(dir, 'index.html'))) {
-      return dir;
+// 1. Mount standard Express static directories
+candidateDistDirs.forEach(dir => {
+  if (fs.existsSync(dir)) {
+    app.use(express.static(dir));
+    const assetsDir = path.join(dir, 'assets');
+    if (fs.existsSync(assetsDir)) {
+      app.use('/assets', express.static(assetsDir));
     }
   }
-  return null;
-}
+});
 
-// Dynamically serve static assets
+// 2. Fallback direct static file server (catches all static files even if mounted late)
 app.use((req, res, next) => {
-  const distDir = getDistDir();
-  if (distDir) {
-    return express.static(distDir)(req, res, next);
+  if (req.path.startsWith('/api')) {
+    return next();
   }
+
+  for (const base of candidateDistDirs) {
+    if (!fs.existsSync(base)) continue;
+
+    // Check direct path inside dist
+    const directPath = path.join(base, req.path);
+    if (fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
+      return res.sendFile(directPath);
+    }
+
+    // Check if file is in /assets/ subdirectory
+    const inAssetsPath = path.join(base, 'assets', req.path);
+    if (fs.existsSync(inAssetsPath) && fs.statSync(inAssetsPath).isFile()) {
+      return res.sendFile(inAssetsPath);
+    }
+  }
+
   next();
 });
 
-// In development or fallback, handle non-api routes
+// 3. SPA wildcard route: serves index.html for all page routes
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
 
-  // Never return index.html for missing static assets (prevents blank page MIME type errors)
-  if (req.path.startsWith('/assets') || (req.path.includes('.') && !req.path.endsWith('.html'))) {
-    return res.status(404).send('Asset not found: ' + req.path);
-  }
-
-  const distDir = getDistDir();
-  if (distDir) {
-    return res.sendFile(path.join(distDir, 'index.html'));
+  for (const base of candidateDistDirs) {
+    const htmlFile = path.join(base, 'index.html');
+    if (fs.existsSync(htmlFile)) {
+      return res.sendFile(htmlFile);
+    }
   }
 
   res.status(200).send(`
