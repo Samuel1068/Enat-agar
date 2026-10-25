@@ -156,7 +156,7 @@ app.use((req, res, next) => {
 
 // 3. SPA wildcard route: serves index.html for all page routes
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  if (req.originalUrl.includes('/api') || req.url.includes('/api') || req.path.includes('/api')) {
     return next();
   }
 

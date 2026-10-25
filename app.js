@@ -1347,7 +1347,7 @@ app.use((req, res, next) => {
   next();
 });
 app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api")) {
+  if (req.originalUrl.includes("/api") || req.url.includes("/api") || req.path.includes("/api")) {
     return next();
   }
   for (const base of candidateDistDirs) {
