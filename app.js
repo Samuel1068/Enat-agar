@@ -1269,6 +1269,7 @@ candidateDistDirs.forEach((dir) => {
     const assetsDir = path.join(dir, "assets");
     if (fs.existsSync(assetsDir)) {
       app.use("/assets", express.static(assetsDir));
+      app.use(express.static(assetsDir));
     }
   }
 });
@@ -1276,6 +1277,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api")) {
     return next();
   }
+  const basename = path.basename(req.path);
   for (const base of candidateDistDirs) {
     if (!fs.existsSync(base)) continue;
     const directPath = path.join(base, req.path);
@@ -1285,6 +1287,28 @@ app.use((req, res, next) => {
     const inAssetsPath = path.join(base, "assets", req.path);
     if (fs.existsSync(inAssetsPath) && fs.statSync(inAssetsPath).isFile()) {
       return res.sendFile(inAssetsPath);
+    }
+    const byBasename = path.join(base, "assets", basename);
+    if (fs.existsSync(byBasename) && fs.statSync(byBasename).isFile()) {
+      return res.sendFile(byBasename);
+    }
+    if (basename.startsWith("index-") && basename.endsWith(".js")) {
+      const assetsDir = path.join(base, "assets");
+      if (fs.existsSync(assetsDir)) {
+        const jsFiles = fs.readdirSync(assetsDir).filter((f) => f.startsWith("index-") && f.endsWith(".js"));
+        if (jsFiles.length > 0) {
+          return res.sendFile(path.join(assetsDir, jsFiles[0]));
+        }
+      }
+    }
+    if (basename.startsWith("index-") && basename.endsWith(".css")) {
+      const assetsDir = path.join(base, "assets");
+      if (fs.existsSync(assetsDir)) {
+        const cssFiles = fs.readdirSync(assetsDir).filter((f) => f.startsWith("index-") && f.endsWith(".css"));
+        if (cssFiles.length > 0) {
+          return res.sendFile(path.join(assetsDir, cssFiles[0]));
+        }
+      }
     }
   }
   next();

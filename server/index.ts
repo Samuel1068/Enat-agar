@@ -58,15 +58,18 @@ candidateDistDirs.forEach(dir => {
     const assetsDir = path.join(dir, 'assets');
     if (fs.existsSync(assetsDir)) {
       app.use('/assets', express.static(assetsDir));
+      app.use(express.static(assetsDir));
     }
   }
 });
 
-// 2. Fallback direct static file server (catches all static files even if mounted late)
+// 2. Direct bulletproof static file server
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
+
+  const basename = path.basename(req.path);
 
   for (const base of candidateDistDirs) {
     if (!fs.existsSync(base)) continue;
@@ -77,10 +80,38 @@ app.use((req, res, next) => {
       return res.sendFile(directPath);
     }
 
-    // Check if file is in /assets/ subdirectory
+    // Check inside /assets/
     const inAssetsPath = path.join(base, 'assets', req.path);
     if (fs.existsSync(inAssetsPath) && fs.statSync(inAssetsPath).isFile()) {
       return res.sendFile(inAssetsPath);
+    }
+
+    // Check by basename inside assets
+    const byBasename = path.join(base, 'assets', basename);
+    if (fs.existsSync(byBasename) && fs.statSync(byBasename).isFile()) {
+      return res.sendFile(byBasename);
+    }
+
+    // Smart fallback for JS bundle hash mismatch: if any index-*.js requested, serve whatever bundle exists
+    if (basename.startsWith('index-') && basename.endsWith('.js')) {
+      const assetsDir = path.join(base, 'assets');
+      if (fs.existsSync(assetsDir)) {
+        const jsFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith('index-') && f.endsWith('.js'));
+        if (jsFiles.length > 0) {
+          return res.sendFile(path.join(assetsDir, jsFiles[0]));
+        }
+      }
+    }
+
+    // Smart fallback for CSS bundle hash mismatch
+    if (basename.startsWith('index-') && basename.endsWith('.css')) {
+      const assetsDir = path.join(base, 'assets');
+      if (fs.existsSync(assetsDir)) {
+        const cssFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith('index-') && f.endsWith('.css'));
+        if (cssFiles.length > 0) {
+          return res.sendFile(path.join(assetsDir, cssFiles[0]));
+        }
+      }
     }
   }
 
