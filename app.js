@@ -1263,22 +1263,31 @@ var candidateDistDirs = [
   path.resolve(__dirname, "../dist"),
   path.resolve(process.cwd(), "../dist")
 ];
-var foundDistDir = candidateDistDirs.find((d) => fs.existsSync(path.join(d, "index.html")));
-if (foundDistDir) {
-  app.use(express.static(foundDistDir));
+function getDistDir() {
+  for (const dir of candidateDistDirs) {
+    if (fs.existsSync(path.join(dir, "index.html"))) {
+      return dir;
+    }
+  }
+  return null;
 }
+app.use((req, res, next) => {
+  const distDir = getDistDir();
+  if (distDir) {
+    return express.static(distDir)(req, res, next);
+  }
+  next();
+});
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) {
     return next();
   }
-  const activeDist = foundDistDir || candidateDistDirs.find((d) => fs.existsSync(path.join(d, "index.html")));
-  if (activeDist) {
-    if (!foundDistDir) {
-      foundDistDir = activeDist;
-      app.use(express.static(activeDist));
-    }
-    const htmlFile = path.join(activeDist, "index.html");
-    return res.sendFile(htmlFile);
+  if (req.path.startsWith("/assets") || req.path.includes(".") && !req.path.endsWith(".html")) {
+    return res.status(404).send("Asset not found: " + req.path);
+  }
+  const distDir = getDistDir();
+  if (distDir) {
+    return res.sendFile(path.join(distDir, "index.html"));
   }
   res.status(200).send(`
     <div style="font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto;">

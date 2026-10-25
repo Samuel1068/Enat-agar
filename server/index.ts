@@ -51,10 +51,23 @@ const candidateDistDirs = [
   path.resolve(process.cwd(), '../dist')
 ];
 
-let foundDistDir = candidateDistDirs.find(d => fs.existsSync(path.join(d, 'index.html')));
-if (foundDistDir) {
-  app.use(express.static(foundDistDir));
+function getDistDir(): string | null {
+  for (const dir of candidateDistDirs) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) {
+      return dir;
+    }
+  }
+  return null;
 }
+
+// Dynamically serve static assets
+app.use((req, res, next) => {
+  const distDir = getDistDir();
+  if (distDir) {
+    return express.static(distDir)(req, res, next);
+  }
+  next();
+});
 
 // In development or fallback, handle non-api routes
 app.get('*', (req, res, next) => {
@@ -62,14 +75,14 @@ app.get('*', (req, res, next) => {
     return next();
   }
 
-  const activeDist = foundDistDir || candidateDistDirs.find(d => fs.existsSync(path.join(d, 'index.html')));
-  if (activeDist) {
-    if (!foundDistDir) {
-      foundDistDir = activeDist;
-      app.use(express.static(activeDist));
-    }
-    const htmlFile = path.join(activeDist, 'index.html');
-    return res.sendFile(htmlFile);
+  // Never return index.html for missing static assets (prevents blank page MIME type errors)
+  if (req.path.startsWith('/assets') || (req.path.includes('.') && !req.path.endsWith('.html'))) {
+    return res.status(404).send('Asset not found: ' + req.path);
+  }
+
+  const distDir = getDistDir();
+  if (distDir) {
+    return res.sendFile(path.join(distDir, 'index.html'));
   }
 
   res.status(200).send(`
