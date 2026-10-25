@@ -1263,17 +1263,23 @@ app.use((req, res, next) => {
   next();
 });
 app.use("/api/auth", auth_default);
+app.use("*/api/auth", auth_default);
 app.use("/api/patients", patients_default);
+app.use("*/api/patients", patients_default);
 app.use("/api/clinician", clinicians_default);
+app.use("*/api/clinician", clinicians_default);
 app.use("/api/admin", admin_default);
-app.get("/api/health", (req, res) => {
+app.use("*/api/admin", admin_default);
+var handleHealth = (req, res) => {
   res.json({
     status: "ok",
     appName: "Enat Agar Fullstack Maternal Health Platform",
     postgresConnected: isConnectedToPostgres,
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
-});
+};
+app.get("/api/health", handleHealth);
+app.get("*/api/health", handleHealth);
 var candidateDistDirs = [
   path.resolve(process.cwd(), "dist"),
   path.resolve(__dirname, "dist"),

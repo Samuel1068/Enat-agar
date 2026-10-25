@@ -45,21 +45,27 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes
+// API Routes (mount standard and wildcard so any subfolder /Enat1/api works)
 app.use('/api/auth', authRoutes);
+app.use('*/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('*/api/patients', patientRoutes);
 app.use('/api/clinician', clinicianRoutes);
+app.use('*/api/clinician', clinicianRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('*/api/admin', adminRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+const handleHealth = (req: express.Request, res: express.Response) => {
   res.json({
     status: 'ok',
     appName: 'Enat Agar Fullstack Maternal Health Platform',
     postgresConnected: isConnectedToPostgres,
     timestamp: new Date().toISOString()
   });
-});
+};
+app.get('/api/health', handleHealth);
+app.get('*/api/health', handleHealth);
 
 // Candidate dist directories to search
 const candidateDistDirs = [
