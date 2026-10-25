@@ -42,22 +42,47 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve frontend in production if built
-const distPath = fs.existsSync(path.resolve(__dirname, './dist'))
-  ? path.resolve(__dirname, './dist')
-  : path.resolve(__dirname, '../dist');
-app.use(express.static(distPath));
+// Candidate dist directories to search
+const candidateDistDirs = [
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(__dirname, 'dist'),
+  path.resolve(__dirname, './dist'),
+  path.resolve(__dirname, '../dist'),
+  path.resolve(process.cwd(), '../dist')
+];
+
+let foundDistDir = candidateDistDirs.find(d => fs.existsSync(path.join(d, 'index.html')));
+if (foundDistDir) {
+  app.use(express.static(foundDistDir));
+}
 
 // In development or fallback, handle non-api routes
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-  res.sendFile(path.join(distPath, 'index.html'), (err) => {
-    if (err) {
-      res.status(200).send('Enat Agar Backend API Running. Start Vite frontend on port 3000.');
+
+  const activeDist = foundDistDir || candidateDistDirs.find(d => fs.existsSync(path.join(d, 'index.html')));
+  if (activeDist) {
+    if (!foundDistDir) {
+      foundDistDir = activeDist;
+      app.use(express.static(activeDist));
     }
-  });
+    const htmlFile = path.join(activeDist, 'index.html');
+    return res.sendFile(htmlFile);
+  }
+
+  res.status(200).send(`
+    <div style="font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto;">
+      <h2>🌸 Enat Agar Backend API Running</h2>
+      <p style="color: #666;">The backend is running, but <code>dist/index.html</code> was not found on this server.</p>
+      <h4>Searched directories:</h4>
+      <ul>
+        ${candidateDistDirs.map(d => `<li><code>${d}</code> — <b>${fs.existsSync(d) ? 'Found directory' : 'Not found'}</b></li>`).join('')}
+      </ul>
+      <p><b>Fix:</b> In cPanel Terminal, run <code>npm run build</code> and then click <b>Restart</b> in Node.js App.</p>
+    </div>
+  `);
 });
 
 // Boot server
