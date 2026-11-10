@@ -1253,13 +1253,21 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
+  const originalUrl = req.url;
   const apiIndex = req.url.indexOf("/api/");
   if (apiIndex > 0) {
     req.url = req.url.substring(apiIndex);
   } else if (req.url.endsWith("/api")) {
     req.url = "/api";
   }
+  if (originalUrl !== req.url) {
+    console.log(`[URL-REWRITE] ${req.method} ${originalUrl} -> ${req.url}`);
+  }
+  next();
+});
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.url} | orig: ${req.originalUrl}`);
   next();
 });
 var handleHealth = (req, res) => {
@@ -1270,19 +1278,14 @@ var handleHealth = (req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 };
-var subpaths = ["", "/Enat1", "/enat1", "/Enat", "/enat", "/Enat-agar1"];
-subpaths.forEach((sub) => {
-  app.use(`${sub}/api/auth`, auth_default);
-  app.use(`${sub}/api/patients`, patients_default);
-  app.use(`${sub}/api/clinician`, clinicians_default);
-  app.use(`${sub}/api/admin`, admin_default);
-  app.get(`${sub}/api/health`, handleHealth);
+app.use("/api/auth", auth_default);
+app.use("/api/patients", patients_default);
+app.use("/api/clinician", clinicians_default);
+app.use("/api/admin", admin_default);
+app.get("/api/health", handleHealth);
+app.use("/api/*", (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
 });
-app.use("*/api/auth", auth_default);
-app.use("*/api/patients", patients_default);
-app.use("*/api/clinician", clinicians_default);
-app.use("*/api/admin", admin_default);
-app.get("*/api/health", handleHealth);
 var candidateDistDirs = [
   path.resolve(process.cwd(), "dist"),
   path.resolve(__dirname, "dist"),

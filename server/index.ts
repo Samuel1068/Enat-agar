@@ -35,13 +35,24 @@ app.use(cors({
 app.use(express.json());
 
 // Strip any application subpath prefix (e.g. /Enat-agar1/api/... -> /api/...)
-app.use((req, res, next) => {
+// This runs before all route handlers so Express always sees clean /api/... paths
+app.use((req, _res, next) => {
+  const originalUrl = req.url;
   const apiIndex = req.url.indexOf('/api/');
   if (apiIndex > 0) {
     req.url = req.url.substring(apiIndex);
   } else if (req.url.endsWith('/api')) {
     req.url = '/api';
   }
+  if (originalUrl !== req.url) {
+    console.log(`[URL-REWRITE] ${req.method} ${originalUrl} -> ${req.url}`);
+  }
+  next();
+});
+
+// Debug: log every incoming request (remove after confirming routing works)
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.url} | orig: ${req.originalUrl}`);
   next();
 });
 
@@ -55,21 +66,19 @@ const handleHealth = (req: express.Request, res: express.Response) => {
   });
 };
 
-// API Routes: mount on root, subfolder prefixes (/Enat1), and wildcards
-const subpaths = ['', '/Enat1', '/enat1', '/Enat', '/enat', '/Enat-agar1'];
-subpaths.forEach(sub => {
-  app.use(`${sub}/api/auth`, authRoutes);
-  app.use(`${sub}/api/patients`, patientRoutes);
-  app.use(`${sub}/api/clinician`, clinicianRoutes);
-  app.use(`${sub}/api/admin`, adminRoutes);
-  app.get(`${sub}/api/health`, handleHealth);
-});
+// API Routes: mounted at /api/* only.
+// The URL-rewrite middleware above strips any subfolder prefix (e.g. /Enat1/api/... -> /api/...)
+// so by the time Express reaches these routes, the URL is always clean.
+app.use('/api/auth', authRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/clinician', clinicianRoutes);
+app.use('/api/admin', adminRoutes);
+app.get('/api/health', handleHealth);
 
-app.use('*/api/auth', authRoutes);
-app.use('*/api/patients', patientRoutes);
-app.use('*/api/clinician', clinicianRoutes);
-app.use('*/api/admin', adminRoutes);
-app.get('*/api/health', handleHealth);
+// Catch-all for unmatched /api/* routes — returns JSON 404 instead of HTML
+app.use('/api/*', (req: express.Request, res: express.Response) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+});
 
 // Candidate dist directories to search
 const candidateDistDirs = [
