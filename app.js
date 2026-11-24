@@ -1284,7 +1284,15 @@ app.use((req, _res, next) => {
   console.log(`[REQ] ${req.method} ${req.url} | orig: ${req.originalUrl}`);
   next();
 });
-var handleHealth = (req, res) => {
+var handleHealth = async (req, res) => {
+  if (!isConnectedToPostgres) {
+    try {
+      await initDatabase();
+    } catch (err) {
+      console.warn("On-demand database init error:", err.message);
+    }
+  }
+
   res.json({
     status: "ok",
     appName: "Enat Agar Fullstack Maternal Health Platform",
@@ -1394,16 +1402,16 @@ app.get("*", (req, res, next) => {
     </div>
   `);
 });
+initDatabase().then(() => {
+  console.log(`\u{1F5C4}\uFE0F PostgreSQL Status: ${isConnectedToPostgres ? "CONNECTED \u2705" : "WAITING / MEMORY-SYNC ACTIVE \u26A1"}`);
+}).catch((err) => {
+  console.warn("Database initialization warning:", err.message);
+});
 var server = app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`\u{1F338} Enat Agar Fullstack Backend running on port ${PORT}`);
   console.log(`\u{1F517} API Base: http://localhost:${PORT}/api`);
   console.log(`=======================================================`);
-  initDatabase().then(() => {
-    console.log(`\u{1F5C4}\uFE0F PostgreSQL Status: ${isConnectedToPostgres ? "CONNECTED \u2705" : "WAITING / MEMORY-SYNC ACTIVE \u26A1"}`);
-  }).catch((err) => {
-    console.warn("Database initialization warning:", err.message);
-  });
 });
 var index_default = app;
 export {

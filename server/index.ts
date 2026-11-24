@@ -57,7 +57,15 @@ app.use((req, _res, next) => {
 });
 
 // Health check endpoint
-const handleHealth = (req: express.Request, res: express.Response) => {
+const handleHealth = async (req: express.Request, res: express.Response) => {
+  if (!isConnectedToPostgres) {
+    try {
+      await initDatabase();
+    } catch (err: any) {
+      console.warn('On-demand database init error:', err.message);
+    }
+  }
+
   res.json({
     status: 'ok',
     appName: 'Enat Agar Fullstack Maternal Health Platform',
@@ -199,19 +207,18 @@ app.get('*', (req, res, next) => {
   `);
 });
 
-// Boot server immediately for Passenger, then initialize database in background
+// Boot database immediately on startup
+initDatabase().then(() => {
+  console.log(`🗄️ PostgreSQL Status: ${isConnectedToPostgres ? 'CONNECTED ✅' : 'WAITING / MEMORY-SYNC ACTIVE ⚡'}`);
+}).catch((err) => {
+  console.warn('Database initialization warning:', err.message);
+});
+
 const server = app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🌸 Enat Agar Fullstack Backend running on port ${PORT}`);
   console.log(`🔗 API Base: http://localhost:${PORT}/api`);
   console.log(`=======================================================`);
-  
-  // Non-blocking database init so Passenger never times out with 503
-  initDatabase().then(() => {
-    console.log(`🗄️ PostgreSQL Status: ${isConnectedToPostgres ? 'CONNECTED ✅' : 'WAITING / MEMORY-SYNC ACTIVE ⚡'}`);
-  }).catch((err) => {
-    console.warn('Database initialization warning:', err.message);
-  });
 });
 
 export default app;
