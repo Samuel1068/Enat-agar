@@ -10,12 +10,26 @@ import { fileURLToPath } from "url";
 import pg from "pg";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 dotenv.config();
+
 var { Pool } = pg;
-var connectionString = process.env.DATABASE_URL || `postgresql://${process.env.PGUSER || "postgres"}:${process.env.PGPASSWORD || "postgres"}@${process.env.PGHOST || "localhost"}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || "enatagar"}`;
+var poolConfig = process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("127.0.0.1") ? { rejectUnauthorized: false } : false
+} : {
+  host: process.env.PGHOST || "127.0.0.1",
+  port: Number(process.env.PGPORT || 5432),
+  user: process.env.PGUSER || "postgres",
+  password: process.env.PGPASSWORD || "postgres",
+  database: process.env.PGDATABASE || "enatagar",
+  ssl: false
+};
 var pool = new Pool({
-  connectionString,
-  ssl: process.env.NODE_ENV === "production" && !connectionString.includes("localhost") ? { rejectUnauthorized: false } : false,
+  ...poolConfig,
   max: 15,
   idleTimeoutMillis: 3e4,
   connectionTimeoutMillis: 3e3
@@ -24,6 +38,7 @@ pool.on("error", (err) => {
   console.warn("\u26A0\uFE0F [Postgres Pool Background Warning]:", err.message);
 });
 var isConnectedToPostgres = false;
+var lastPgError = null;
 var memoryStore = {
   users: [],
   patient_profiles: [],
@@ -259,6 +274,7 @@ async function initDatabase() {
     await seedDefaultAccounts(client, true);
     client.release();
   } catch (err) {
+    lastPgError = err.message;
     console.warn("\u26A0\uFE0F Could not connect to local PostgreSQL instance:", err.message);
     console.log("\u{1F4A1} Enat Agar will use the resilient unified data layer with memory sync until PostgreSQL is started.");
     console.log("\u{1F4CC} Configure DATABASE_URL in .env to connect to any PostgreSQL instance (e.g., Supabase, Neon, Docker, or local pg).");
@@ -1244,8 +1260,6 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason) => {
   console.error("\u26A0\uFE0F [Process Unhandled Rejection]:", reason);
 });
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
 var app = express();
 var PORT = process.env.PORT || 5e3;
 app.use(cors({
@@ -1275,6 +1289,12 @@ var handleHealth = (req, res) => {
     status: "ok",
     appName: "Enat Agar Fullstack Maternal Health Platform",
     postgresConnected: isConnectedToPostgres,
+    postgresError: isConnectedToPostgres ? null : lastPgError,
+    dbTarget: {
+      host: poolConfig.host || "from DATABASE_URL",
+      user: poolConfig.user || "from DATABASE_URL",
+      database: poolConfig.database || "from DATABASE_URL"
+    },
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 };

@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initDatabase, isConnectedToPostgres } from './db.js';
+import { initDatabase, isConnectedToPostgres, lastPgError, poolConfig } from './db.js';
 import authRoutes from './routes/auth.js';
 import patientRoutes from './routes/patients.js';
 import clinicianRoutes from './routes/clinicians.js';
@@ -62,6 +62,12 @@ const handleHealth = (req: express.Request, res: express.Response) => {
     status: 'ok',
     appName: 'Enat Agar Fullstack Maternal Health Platform',
     postgresConnected: isConnectedToPostgres,
+    postgresError: isConnectedToPostgres ? null : lastPgError,
+    dbTarget: {
+      host: poolConfig.host || 'from DATABASE_URL',
+      user: poolConfig.user || 'from DATABASE_URL',
+      database: poolConfig.database || 'from DATABASE_URL',
+    },
     timestamp: new Date().toISOString()
   });
 };

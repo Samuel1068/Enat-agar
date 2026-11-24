@@ -2,17 +2,36 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from both app root and current working directory
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config();
 
 const { Pool } = pg;
 
-// Connection string from environment or standard local fallback
-const connectionString = process.env.DATABASE_URL || 
-  `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || 'postgres'}@${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || 'enatagar'}`;
+// Support both DATABASE_URL and direct parameters (which avoids URL-encoding issues with special characters)
+export const poolConfig: pg.PoolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL.includes('localhost') && !process.env.DATABASE_URL.includes('127.0.0.1') ? { rejectUnauthorized: false } : false,
+    }
+  : {
+      host: process.env.PGHOST || '127.0.0.1',
+      port: Number(process.env.PGPORT || 5432),
+      user: process.env.PGUSER || 'postgres',
+      password: process.env.PGPASSWORD || 'postgres',
+      database: process.env.PGDATABASE || 'enatagar',
+      ssl: false,
+    };
 
 export const pool = new Pool({
-  connectionString,
-  ssl: process.env.NODE_ENV === 'production' && !connectionString.includes('localhost') ? { rejectUnauthorized: false } : false,
+  ...poolConfig,
   max: 15,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 3000,
@@ -24,6 +43,7 @@ pool.on('error', (err) => {
 });
 
 export let isConnectedToPostgres = false;
+export let lastPgError: string | null = null;
 
 // In-Memory store fallback that mirrors PostgreSQL data structure
 // Ensures immediate usability even before a user starts their PostgreSQL server
@@ -303,6 +323,7 @@ export async function initDatabase() {
     await seedDefaultAccounts(client, true);
     client.release();
   } catch (err: any) {
+    lastPgError = err.message;
     console.warn('⚠️ Could not connect to local PostgreSQL instance:', err.message);
     console.log('💡 Enat Agar will use the resilient unified data layer with memory sync until PostgreSQL is started.');
     console.log('📌 Configure DATABASE_URL in .env to connect to any PostgreSQL instance (e.g., Supabase, Neon, Docker, or local pg).');
